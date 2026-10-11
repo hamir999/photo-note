@@ -1,7 +1,8 @@
 {
-  "name": "블로그 사진",
-  "short_name": "블로그사진",
-  "start_url": "./index.html",
+  "id": "/photo-note/app",
+  "name": "사진노트",
+  "short_name": "사진노트",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
