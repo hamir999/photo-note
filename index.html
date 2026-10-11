@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1c1c1c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>블로그 사진</title>
+<style>
+:root{--bg:#fafaf9;--fg:#1c1c1c;--muted:#6b6b68;--line:#e2e2de;--card:#ffffff;--accent:#2f3e46;--accent-fg:#ffffff;--danger:#8a3b3b}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecece8;--muted:#9a9a95;--line:#2b2b29;--card:#1e1e1c;--accent:#d9ddd8;--accent-fg:#161615;--danger:#d48a8a}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:16px;-webkit-text-size-adjust:100%}
+.view{min-height:100vh;padding:16px 16px calc(24px + env(safe-area-inset-bottom));max-width:520px;margin:0 auto}
+.hidden{display:none!important}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+h1{font-size:18px;font-weight:600;margin:0}
+label,.lbl{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px}
+label.row{display:flex;align-items:center;gap:8px;color:var(--fg);font-size:15px;margin:16px 0}
+input[type=text],input:not([type]),input[type=url],input[type=password]{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);font-size:16px}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+button{font:inherit;color:var(--fg)}
+.primary{width:100%;padding:14px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-fg);font-weight:600;margin-top:8px}
+.ghost{background:none;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;font-size:15px}
+.chip.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.muted{color:var(--muted);font-size:13px;line-height:1.5}
+.err{color:var(--danger)}
+.note{color:var(--muted);font-size:13px;line-height:1.5;margin:6px 0 10px}
+.rowbtn{display:flex;gap:8px}
+.rowbtn input{flex:1;min-width:0}
+.rowbtn .ghost{white-space:nowrap;padding:8px 12px}
+#cam{position:fixed;inset:0;background:#000;max-width:none;padding:0;min-height:0;z-index:5}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.camtop{position:absolute;top:0;left:0;right:0;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;background:linear-gradient(#000a,#0000);display:flex;gap:8px;align-items:center;color:#fff}
+.camtop .info{flex:1;font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.camtop button,.cambot button.t{color:#fff;border:1px solid #fff6;background:#0006;border-radius:10px;padding:8px 12px;font-size:14px}
+.cambot{position:absolute;left:0;right:0;bottom:0;padding:12px 12px calc(16px + env(safe-area-inset-bottom));background:linear-gradient(#0000,#000b);color:#fff}
+.camchips{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
+.camchips .chip{background:#0007;color:#fff;border-color:#fff5;white-space:nowrap}
+.camchips .chip.on{background:#fff;color:#111;border-color:#fff}
+.cammemo{width:100%;margin-bottom:12px;background:#0007!important;border-color:#fff5!important;color:#fff!important}
+.camrow{display:flex;align-items:center;justify-content:space-between}
+.shutter{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:#fff3;padding:0}
+.shutter:active{background:#fff}
+.count{min-width:64px;text-align:right;font-size:14px}
+#toast{position:fixed;left:50%;bottom:calc(120px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#000c;color:#fff;padding:8px 14px;border-radius:999px;font-size:14px;z-index:9;pointer-events:none}
+</style>
+</head>
+<body>
+
+<main id="form" class="view">
+  <header><h1>블로그 사진</h1><button id="btnSettings" class="ghost" type="button">설정</button></header>
+  <label for="subject">소재 (폴더 이름)</label>
+  <input id="subject" placeholder="예: 오사카여행, 여주아웃백, 진부사우나">
+  <label for="place">장소</label>
+  <input id="place" placeholder="예: 도톤보리">
+  <div class="lbl">장소 유형</div>
+  <div id="typeChips" class="chips"></div>
+  <p id="typeNote" class="note hidden"></p>
+  <div class="lbl">내용</div>
+  <div id="chips" class="chips"></div>
+  <div class="rowbtn">
+    <input id="contentFree" placeholder="목록에 없으면 직접 입력">
+    <button id="btnAddChip" class="ghost" type="button">+ 목록에 추가</button>
+  </div>
+  <label for="memo">메모 (선택)</label>
+  <input id="memo" placeholder="그때 느낌을 한 줄로">
+  <label class="row"><input type="checkbox" id="cover"> 대표 사진 후보로 저장</label>
+  <button id="btnOpen" class="primary" type="button">카메라 열기</button>
+  <p id="info" class="muted"></p>
+</main>
+
+<main id="cam" class="view hidden">
+  <video id="video" playsinline muted autoplay></video>
+  <div class="camtop">
+    <button id="btnBack" type="button">‹ 내용 수정</button>
+    <div class="info" id="camInfo"></div>
+    <button id="btnNative" type="button">기본 카메라</button>
+  </div>
+  <div class="cambot">
+    <div id="camChips" class="camchips"></div>
+    <input id="camMemo" class="cammemo" placeholder="메모 (선택)">
+    <div class="camrow">
+      <button id="btnCover" class="t" type="button">대표 해제</button>
+      <button id="btnShot" class="shutter" type="button" aria-label="촬영"></button>
+      <div class="count" id="camCount"></div>
+    </div>
+  </div>
+  <input id="file" type="file" accept="image/*" capture="environment" hidden>
+</main>
+
+<main id="settings" class="view hidden">
+  <header><h1>설정</h1><button id="btnSettingsBack" class="ghost" type="button">닫기</button></header>
+  <label for="url">업로드 주소 (Apps Script 웹 앱 URL)</label>
+  <input id="url" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+  <label for="key">비밀 키</label>
+  <input id="key" type="password" autocomplete="off">
+  <label class="row"><input type="checkbox" id="stamp"> 글자가 입혀진 확인용 사본도 같이 저장</label>
+  <button id="btnTest" class="primary" type="button">연결 확인하고 저장</button>
+  <button id="btnFlush" class="ghost" type="button" style="width:100%;margin-top:10px;padding:12px">대기 중인 사진 지금 올리기</button>
+  <button id="btnClearChips" class="ghost" type="button" style="width:100%;margin-top:10px;padding:12px">직접 추가한 내용 버튼 모두 지우기</button>
+  <p id="status" class="muted"></p>
+</main>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+const $ = function (s) { return document.querySelector(s); };
+// 장소 유형별로 찍는 내용이 다르므로 유형마다 버튼 목록을 따로 둠 (직접 추가한 내용은 유형별로 저장됨)
+const TYPES = {
+  '식당': ['외관', '메뉴판', '음식', '실내', '기타'],
+  '카페': ['외관', '메뉴판', '음료', '디저트', '실내', '뷰', '기타'],
+  '사우나': ['외관', '요금표', '안내판', '로비', '휴게실', '매점', '기타'],
+  '관광지': ['입구', '안내판', '풍경', '포토스팟', '먹거리', '기념품', '기타'],
+  '기타': ['외관', '안내판', '풍경', '실내', '기타']
+};
+const NOTES = {
+  '사우나': '탈의실과 탕 안은 촬영 금지이거나 다른 사람이 찍힐 수 있어요. 외관, 요금표, 안내판, 휴게공간 위주로 찍어 주세요.'
+};
+const store = {
+  get: function () { try { return JSON.parse(localStorage.getItem('bp') || '{}'); } catch (e) { return {}; } },
+  set: function (v) { try { localStorage.setItem('bp', JSON.stringify(v)); } catch (e) {} }
+};
+const S = Object.assign({ subject: '', type: '식당', place: '', content: '외관', memo: '', cover: false, stamp: false, url: '', key: '', subjectMonth: {}, custom: {} }, store.get());
+function save() { store.set(S); }
+const pad = function (n) { return String(n).padStart(2, '0'); };
+function now() {
+  const d = new Date();
+  return {
+    date: '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()),
+    time: pad(d.getHours()) + ':' + pad(d.getMinutes()),
+    ym: d.getFullYear() + '-' + pad(d.getMonth() + 1)
+  };
+}
+function folderName() {
+  if (!S.subjectMonth[S.subject]) S.subjectMonth[S.subject] = now().ym;
+  save();
+  return S.subjectMonth[S.subject] + '_' + S.subject;
+}
+
+/* ---------- 화면 전환 ---------- */
+function show(id) {
+  ['form', 'cam', 'settings'].forEach(function (v) { $('#' + v).classList.toggle('hidden', v !== id); });
+}
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 1800);
+}
+
+/* ---------- 입력 화면 ---------- */
+function chipsFor(t) {
+  const base = (TYPES[t] || TYPES['기타']).filter(function (c) { return c !== '기타'; });
+  return base.concat(S.custom[t] || [], ['기타']);
+}
+function renderTypeChips(el) {
+  el.innerHTML = '';
+  Object.keys(TYPES).forEach(function (t) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (S.type === t ? ' on' : '');
+    b.textContent = t;
+    b.onclick = function () {
+      S.type = t;
+      if (chipsFor(t).indexOf(S.content) < 0) S.content = chipsFor(t)[0];
+      $('#contentFree').value = '';
+      save(); renderAll();
+    };
+    el.appendChild(b);
+  });
+}
+function renderChips(el) {
+  el.innerHTML = '';
+  chipsFor(S.type).forEach(function (c) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (S.content === c ? ' on' : '');
+    b.textContent = c;
+    b.onclick = function () { S.content = c; $('#contentFree').value = ''; save(); renderAll(); };
+    el.appendChild(b);
+  });
+}
+function renderAll() {
+  renderTypeChips($('#typeChips'));
+  renderChips($('#chips'));
+  renderChips($('#camChips'));
+  const note = NOTES[S.type] || '';
+  $('#typeNote').textContent = note;
+  $('#typeNote').classList.toggle('hidden', !note);
+  $('#camInfo').textContent = S.subject + ' · ' + (S.place || '장소 미입력') + ' · ' + S.content;
+  $('#btnCover').textContent = S.cover ? '대표 해제' : '대표로 저장';
+  $('#cover').checked = S.cover;
+}
+let session = 0;
+async function updatePending() {
+  let n = 0;
+  try { n = (await qAll()).length; } catch (e) {}
+  $('#camCount').textContent = '이번 ' + session + '장' + (n ? ' · 대기 ' + n : '');
+  $('#info').textContent = n ? '업로드 대기 중인 사진 ' + n + '장 (인터넷이 연결되면 자동으로 올라갑니다)' : '';
+}
+function readForm() {
+  S.subject = $('#subject').value.trim();
+  S.place = $('#place').value.trim();
+  S.memo = $('#memo').value.trim();
+  S.cover = $('#cover').checked;
+  save();
+}
+$('#subject').oninput = $('#place').oninput = $('#memo').oninput = readForm;
+$('#cover').onchange = function () { readForm(); renderAll(); };
+$('#contentFree').oninput = function () {
+  const v = $('#contentFree').value.trim();
+  if (v) S.content = v;
+  else if (chipsFor(S.type).indexOf(S.content) < 0) S.content = '기타';
+  save(); renderAll();
+};
+$('#btnAddChip').onclick = function () {
+  const v = $('#contentFree').value.trim();
+  if (!v) { toast('추가할 내용을 입력해 주세요'); return; }
+  if (chipsFor(S.type).indexOf(v) < 0) {
+    if (!S.custom[S.type]) S.custom[S.type] = [];
+    S.custom[S.type].push(v);
+  }
+  S.content = v;
+  $('#contentFree').value = '';
+  save(); renderAll();
+};
+$('#camMemo').oninput = function () { S.memo = $('#camMemo').value.trim(); $('#memo').value = S.memo; save(); };
+$('#btnCover').onclick = function () { S.cover = !S.cover; save(); renderAll(); };
+
+/* ---------- 카메라 ---------- */
+let stream = null;
+async function startCam() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1440 } },
+      audio: false
+    });
+    const v = $('#video');
+    v.srcObject = stream;
+    await v.play();
+  } catch (e) {
+    toast('카메라를 열지 못했어요. 오른쪽 위 [기본 카메라]를 써 주세요');
+  }
+}
+function stopCam() {
+  if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+}
+$('#btnOpen').onclick = function () {
+  readForm();
+  if (!S.subject) { toast('소재를 입력해 주세요'); return; }
+  if (!S.url || !S.key) { show('settings'); $('#status').textContent = '먼저 업로드 주소와 비밀 키를 입력해 주세요.'; return; }
+  $('#camMemo').value = S.memo;
+  renderAll(); show('cam'); startCam(); updatePending();
+};
+$('#btnBack').onclick = function () { stopCam(); show('form'); renderAll(); };
+$('#btnNative').onclick = function () { $('#file').click(); };
+$('#file').onchange = async function () {
+  const f = $('#file').files[0];
+  $('#file').value = '';
+  if (!f) return;
+  const img = await new Promise(function (res, rej) {
+    const i = new Image();
+    i.onload = function () { res(i); };
+    i.onerror = rej;
+    i.src = URL.createObjectURL(f);
+  });
+  await capture(img, img.naturalWidth, img.naturalHeight);
+};
+$('#btnShot').onclick = function () {
+  const v = $('#video');
+  if (!v.videoWidth) { toast('카메라가 아직 준비되지 않았어요'); return; }
+  capture(v, v.videoWidth, v.videoHeight);
+};
+async function capture(source, w, h) {
+  const sc = Math.min(1, 2000 / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * sc); c.height = Math.round(h * sc);
+  c.getContext('2d').drawImage(source, 0, 0, c.width, c.height);   // 다시 그리면서 위치 정보(EXIF)가 사라짐
+  const blob = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.86); });
+  if (!blob) { toast('사진을 만들지 못했어요'); return; }
+  const n = now();
+  const uid = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const meta = {
+    uid: uid, date: n.date, time: n.time, subject: S.subject, folder: folderName(),
+    type: S.type, place: S.place, content: S.content, memo: S.memo, cover: S.cover, sub: ''
+  };
+  const base = Date.now();
+  await qPut({ id: base * 10, meta: meta, blob: blob });
+  if (S.stamp) {
+    const sb = await stampBlob(c, meta);
+    await qPut({ id: base * 10 + 1, meta: Object.assign({}, meta, { uid: uid + 's', sub: '확인용', pair: uid }), blob: sb });
+  }
+  session++;
+  toast('저장 ' + session + '장');
+  updatePending();
+  flush();
+}
+async function stampBlob(src, meta) {
+  const c = document.createElement('canvas');
+  c.width = src.width; c.height = src.height;
+  const g = c.getContext('2d');
+  g.drawImage(src, 0, 0);
+  const fs = Math.round(c.width / 28);
+  g.font = '600 ' + fs + 'px sans-serif';
+  const l1 = meta.place + ' · ' + meta.content + (meta.memo ? ' · ' + meta.memo : '');
+  const l2 = meta.date + ' ' + meta.time;
+  g.fillStyle = 'rgba(0,0,0,0.55)';
+  g.fillRect(0, c.height - fs * 3.2, c.width, fs * 3.2);
+  g.fillStyle = '#fff';
+  g.fillText(l1, fs * 0.6, c.height - fs * 1.7);
+  g.fillText(l2, fs * 0.6, c.height - fs * 0.5);
+  return await new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.8); });
+}
+
+/* ---------- 업로드 대기열 (인터넷이 없어도 쌓였다가 올라감) ---------- */
+function openDB() {
+  return new Promise(function (res, rej) {
+    const r = indexedDB.open('bp', 1);
+    r.onupgradeneeded = function () { r.result.createObjectStore('q', { keyPath: 'id' }); };
+    r.onsuccess = function () { res(r.result); };
+    r.onerror = function () { rej(r.error); };
+  });
+}
+async function tx(mode, fn) {
+  const db = await openDB();
+  return new Promise(function (res, rej) {
+    const t = db.transaction('q', mode);
+    const r = fn(t.objectStore('q'));
+    t.oncomplete = function () { res(r && r.result); };
+    t.onerror = function () { rej(t.error); };
+  });
+}
+const qPut = function (i) { return tx('readwrite', function (s) { return s.put(i); }); };
+const qDel = function (id) { return tx('readwrite', function (s) { return s.delete(id); }); };
+const qAll = function () { return tx('readonly', function (s) { return s.getAll(); }); };
+
+function b64(blob) {
+  return new Promise(function (res, rej) {
+    const f = new FileReader();
+    f.onload = function () { res(String(f.result).split(',')[1]); };
+    f.onerror = rej;
+    f.readAsDataURL(blob);
+  });
+}
+async function sendOne(it) {
+  const body = JSON.stringify(Object.assign({ key: S.key, data: await b64(it.blob) }, it.meta));
+  const r = await fetch(S.url, { method: 'POST', body: body, headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || '업로드 실패');
+  return j;
+}
+let flushing = false, lastErr = '';
+async function flush() {
+  if (flushing || !S.url || !S.key) return;
+  flushing = true;
+  try {
+    const items = (await qAll()).sort(function (a, b) { return a.id - b.id; });
+    for (const it of items) {
+      try { await sendOne(it); await qDel(it.id); lastErr = ''; }
+      catch (e) { lastErr = e.message; break; }
+      updatePending();
+    }
+  } finally {
+    flushing = false;
+    updatePending();
+    $('#status').textContent = lastErr ? '올리지 못한 사진이 있어요: ' + lastErr : '';
+    $('#status').className = 'muted' + (lastErr ? ' err' : '');
+  }
+}
+window.addEventListener('online', flush);
+
+/* ---------- 설정 ---------- */
+$('#btnSettings').onclick = function () {
+  $('#url').value = S.url; $('#key').value = S.key; $('#stamp').checked = S.stamp;
+  show('settings'); updatePending();
+};
+$('#btnSettingsBack').onclick = function () { show('form'); };
+$('#btnTest').onclick = async function () {
+  const url = $('#url').value.trim(), key = $('#key').value.trim();
+  $('#status').className = 'muted';
+  $('#status').textContent = '확인 중...';
+  try {
+    const r = await fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + 'key=' + encodeURIComponent(key));
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error);
+    S.url = url; S.key = key; S.stamp = $('#stamp').checked; save();
+    $('#status').textContent = '연결됐어요. 저장했습니다.';
+    flush();
+  } catch (e) {
+    $('#status').className = 'muted err';
+    $('#status').textContent = '연결하지 못했어요. 주소와 키를 다시 확인해 주세요. (' + e.message + ')';
+  }
+};
+$('#btnFlush').onclick = function () { flush(); };
+$('#btnClearChips').onclick = function () {
+  S.custom = {};
+  if (chipsFor(S.type).indexOf(S.content) < 0) S.content = chipsFor(S.type)[0];
+  save(); renderAll();
+  $('#status').className = 'muted';
+  $('#status').textContent = '직접 추가한 내용 버튼을 지웠어요.';
+};
+
+/* ---------- 시작 ---------- */
+$('#subject').value = S.subject; $('#place').value = S.place; $('#memo').value = S.memo;
+if (chipsFor(S.type).indexOf(S.content) < 0) $('#contentFree').value = S.content;
+renderAll(); updatePending();
+if (!S.url || !S.key) { $('#btnSettings').click(); $('#status').textContent = '처음 한 번만 업로드 주소와 비밀 키를 입력하면 됩니다.'; }
+else flush();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
+</body>
+</html>
